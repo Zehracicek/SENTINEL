@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { LANDING_FLOW_STEPS, LANDING_AI_BLOCK } from "../data/landingFlow";
 import InstrumentStripViz from "./landing/InstrumentStripViz";
+import CanvasErrorBoundary from "./landing/CanvasErrorBoundary";
 
 const LandingRoverCanvas = lazy(() =>
   import("./landing/LandingRoverCanvas"),
@@ -287,9 +288,11 @@ export default function LandingPage() {
         color: "#BCC8D4",
       }}
     >
-      <Suspense fallback={null}>
-        <LandingRoverCanvas progressRef={roverProgressRef} />
-      </Suspense>
+      <CanvasErrorBoundary>
+        <Suspense fallback={null}>
+          <LandingRoverCanvas progressRef={roverProgressRef} />
+        </Suspense>
+      </CanvasErrorBoundary>
 
       <div
         className="pointer-events-none fixed inset-0 z-[1] bg-gradient-to-b from-black/75 via-black/20 via-40% to-black/88"
@@ -596,12 +599,16 @@ export default function LandingPage() {
         </p>
       </section>
 
-      <Suspense fallback={null}>
-        <HyperdrivePanel />
-      </Suspense>
-      <Suspense fallback={null}>
-        <CaspianPanel />
-      </Suspense>
+      <CanvasErrorBoundary>
+        <Suspense fallback={null}>
+          <HyperdrivePanel />
+        </Suspense>
+      </CanvasErrorBoundary>
+      <CanvasErrorBoundary>
+        <Suspense fallback={null}>
+          <CaspianPanel />
+        </Suspense>
+      </CanvasErrorBoundary>
 
       <main
         id="mars-story"

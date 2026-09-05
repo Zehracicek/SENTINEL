@@ -27,8 +27,9 @@ import {
   useSpring,
 } from "framer-motion";
 import * as THREE from "three";
+import { ROVER_GLB_URL } from "../../utils/publicUrl";
 
-useGLTF.preload("/models/perseverance.glb");
+useGLTF.preload(ROVER_GLB_URL);
 
 function heightAt(x, z) {
   return (
@@ -39,7 +40,7 @@ function heightAt(x, z) {
 }
 
 function MarsRoverInBounds({ margin = 1.18, y = 0 }) {
-  const gltf = useGLTF("/models/perseverance.glb");
+  const gltf = useGLTF(ROVER_GLB_URL);
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
 
   useLayoutEffect(() => {

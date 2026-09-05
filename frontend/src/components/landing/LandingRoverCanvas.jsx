@@ -7,11 +7,12 @@ import {
   useGLTF,
 } from "@react-three/drei";
 import * as THREE from "three";
+import { ROVER_GLB_URL } from "../../utils/publicUrl";
 
-useGLTF.preload("/models/perseverance.glb");
+useGLTF.preload(ROVER_GLB_URL);
 
 function RoverMesh() {
-  const gltf = useGLTF("/models/perseverance.glb");
+  const gltf = useGLTF(ROVER_GLB_URL);
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
 
   useLayoutEffect(() => {
