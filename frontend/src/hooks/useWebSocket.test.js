@@ -68,6 +68,12 @@ afterEach(() => {
 });
 
 describe("bağlantı yaşam döngüsü", () => {
+  it("url yokken soket açmaz", () => {
+    const { result } = renderHook(() => useWebSocket(""));
+    expect(sockets).toHaveLength(0);
+    expect(result.current.status).toBe("disconnected");
+  });
+
   it("tek bir soket açar ve açılınca connected olur", () => {
     const { result } = renderHook(() => useWebSocket(URL));
 

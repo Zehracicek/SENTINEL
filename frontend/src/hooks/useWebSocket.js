@@ -37,6 +37,7 @@ export default function useWebSocket(url) {
   }, []);
 
   const connect = useCallback(() => {
+    if (!url) return;
     const existing = wsRef.current;
     // OPEN veya CONNECTING bir soket varsa yeni bağlantı açmayalım; aksi halde
     // önceki soket kapatılmadan referansı ezilir ve arkada açık kalır.
@@ -99,13 +100,19 @@ export default function useWebSocket(url) {
 
   useEffect(() => {
     mountedRef.current = true;
+    if (!url) {
+      setStatus("disconnected");
+      return () => {
+        mountedRef.current = false;
+      };
+    }
     connect();
     return () => {
       mountedRef.current = false;
       clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, url]);
 
   const send = useCallback((data) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

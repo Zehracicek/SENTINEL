@@ -5,6 +5,12 @@ yazılır. Anahtar yoksa istek yine gider; sunucu 401/503 döner — UI bunu
 göstermek zorundadır, yoksa düğmeler sessizce ölür.
 */
 
+export function apiUrl(path) {
+  const base = String(import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+  const p = String(path || "").startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
+}
+
 export function apiToken() {
   return String(import.meta.env.VITE_API_TOKEN || "").trim();
 }
@@ -28,7 +34,7 @@ export async function apiFetch(url, options = {}) {
     headers.set("X-API-Token", token);
   }
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(apiUrl(url), { ...options, headers });
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try {

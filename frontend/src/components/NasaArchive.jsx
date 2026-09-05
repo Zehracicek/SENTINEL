@@ -1,6 +1,41 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../utils/api";
 
+async function loadFromNasaDirect() {
+  const [apodRes, imgRes] = await Promise.allSettled([
+    fetch("https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY").then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    }),
+    fetch(
+      "https://images-api.nasa.gov/search?q=curiosity%20rover%20mars&media_type=image&page_size=12"
+    ).then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    }),
+  ]);
+  const photos = [];
+  if (imgRes.status === "fulfilled") {
+    const items = imgRes.value?.collection?.items || [];
+    for (const item of items) {
+      const data = (item.data || [])[0] || {};
+      const href = (item.links || []).find((ln) => ln.href)?.href;
+      if (!href) continue;
+      photos.push({
+        id: data.nasa_id || href,
+        img_src: href,
+        earth_date: String(data.date_created || "").slice(0, 10),
+        camera: { name: (data.center || "NASA").toUpperCase() },
+        title: data.title || "",
+      });
+    }
+  }
+  return {
+    apod: apodRes.status === "fulfilled" ? apodRes.value : null,
+    photos,
+  };
+}
+
 export default function NasaArchive() {
   const [apod, setApod] = useState(null);
   const [photos, setPhotos] = useState([]);
@@ -20,16 +55,29 @@ export default function NasaArchive() {
         ]);
         if (cancelled) return;
 
-        if (apodRes.status === "fulfilled") setApod(apodRes.value);
+        let nextApod = apodRes.status === "fulfilled" ? apodRes.value : null;
+        let nextPhotos = [];
+        let nextMeta = null;
         if (photoRes.status === "fulfilled") {
           const body = photoRes.value;
-          setPhotos(Array.isArray(body?.photos) ? body.photos : []);
-          setMeta(body?.meta || null);
+          nextPhotos = Array.isArray(body?.photos) ? body.photos : [];
+          nextMeta = body?.meta || null;
         }
-
-        const failed = [apodRes, photoRes].filter((r) => r.status === "rejected");
-        if (failed.length === 2) {
-          setError(failed[0].reason?.message || "NASA arşivi yanıt vermedi");
+        if (!nextApod || nextPhotos.length === 0) {
+          const pub = await loadFromNasaDirect();
+          if (cancelled) return;
+          if (!nextApod) nextApod = pub.apod;
+          if (nextPhotos.length === 0 && pub.photos.length) {
+            nextPhotos = pub.photos;
+            nextMeta = { count: pub.photos.length };
+          }
+        }
+        if (cancelled) return;
+        setApod(nextApod);
+        setPhotos(nextPhotos);
+        setMeta(nextMeta);
+        if (!nextApod && nextPhotos.length === 0) {
+          setError("NASA arşivi yanıt vermedi");
         }
       } catch (e) {
         if (!cancelled) setError(e.message || "NASA arşivi yanıt vermedi");

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch } from "../utils/api";
+import { apiFetch, apiUrl } from "../utils/api";
 
 const MAX_READINGS = 120;
 /** Sensör detay / canlı: her tip için en güncel N okuma (karışık kuyruk yerine) */
@@ -142,7 +142,7 @@ export default function useAnomalyData(messageBatch) {
   /* Sayfa / uygulama ilk açıldığında: DB’den karışık kayıt + sensör başına son 50 — grafik “giriş anından” başlamasın */
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/sensor-data?limit=${BOOTSTRAP_READINGS_LIMIT}`)
+    fetch(apiUrl(`/api/sensor-data?limit=${BOOTSTRAP_READINGS_LIMIT}`))
       .then((r) => (r.ok ? r.json() : []))
       .then((rows) => {
         if (cancelled || !Array.isArray(rows) || rows.length === 0) return;
@@ -159,7 +159,7 @@ export default function useAnomalyData(messageBatch) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/anomalies?limit=${ANOMALY_BOOTSTRAP_LIMIT}`)
+    fetch(apiUrl(`/api/anomalies?limit=${ANOMALY_BOOTSTRAP_LIMIT}`))
       .then((r) => (r.ok ? r.json() : []))
       .then((rows) => {
         if (cancelled || !Array.isArray(rows)) return;

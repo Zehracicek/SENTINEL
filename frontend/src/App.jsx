@@ -4,11 +4,32 @@ import useAnomalyData from "./hooks/useAnomalyData";
 import Dashboard from "./components/Dashboard";
 import LandingPage from "./components/LandingPage";
 
-const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
-const WS_URL = `${WS_PROTOCOL}//${window.location.host}/ws/live-feed`;
+function routerBasename() {
+  const raw = import.meta.env.BASE_URL || "/";
+  if (raw === "/") return undefined;
+  return raw.replace(/\/$/, "");
+}
+
+function liveFeedWsUrl() {
+  const explicit = String(import.meta.env.VITE_WS_URL || "").trim();
+  if (explicit) return explicit;
+  const apiBase = String(import.meta.env.VITE_API_BASE || "").trim();
+  if (apiBase) {
+    try {
+      const u = new URL(apiBase);
+      const proto = u.protocol === "https:" ? "wss:" : "ws:";
+      return `${proto}//${u.host}/ws/live-feed`;
+    } catch {
+      /* geçersiz VITE_API_BASE */
+    }
+  }
+  if (/\.github\.io$/i.test(window.location.hostname)) return "";
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/ws/live-feed`;
+}
 
 function SentinelShell() {
-  const { status, messageBatch } = useWebSocket(WS_URL);
+  const { status, messageBatch } = useWebSocket(liveFeedWsUrl());
   const {
     readings,
     readingsByType,
@@ -43,7 +64,7 @@ function SentinelShell() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename()}>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/:sayfa" element={<SentinelShell />} />

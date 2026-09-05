@@ -18,6 +18,7 @@ import EarthCloud from "./EarthCloud";
 import RoverThinking from "./RoverThinking";
 import EvaluationMetrics from "./EvaluationMetrics";
 import NasaArchive from "./NasaArchive";
+import { apiUrl } from "../utils/api";
 
 /** URL: /{path} — alt çizgili sayfa adları */
 export const NAV = [
@@ -66,7 +67,7 @@ export default function Dashboard({
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      fetch("/health")
+      fetch(apiUrl("/health"))
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
         .then((j) => {
           if (!cancelled) setHealth(j);

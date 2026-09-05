@@ -520,6 +520,14 @@ cd frontend && npm install && npm run dev
 ### 8. Aç
 Tarayıcıda [http://localhost:5173](http://localhost:5173). Geliştirmede `vite.config.js` `/api` ve `/ws` isteklerini `http://localhost:8000` adresine yönlendirir. Üretimde genelde nginx ile aynı kökenden servis edilir.
 
+### 9. GitHub Pages (statik vitrin)
+
+GitHub Pages yalnızca derlenmiş frontend’i yayınlar; FastAPI + Postgres orada çalışmaz. Canlı adres: [https://zehracicek.github.io/SENTINEL/](https://zehracicek.github.io/SENTINEL/)
+
+`main`’e her push `.github/workflows/pages.yml` ile siteyi günceller. İlk seferde repo **Settings → Pages → Source: GitHub Actions** seçilmelidir.
+
+Gösterge panelindeki canlı telemetri için ayrı bir API gerekir (`VITE_API_BASE` / `VITE_WS_URL`). NASA_ARŞİV, backend yokken NASA açık uçlarına düşer.
+
 ---
 
 ## 10. Dosya Yapısı
