@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { -webkit-font-smoothing: antialiased; }
+  html { font-size: 14px; }
+  body { background: #04060A; }
+  ::selection { background: #00F2FF30; color: #00F2FF; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #04060A; }
+  ::-webkit-scrollbar-thumb { background: #0F1923; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #1A2535; }
+
+  .recharts-wrapper,
+  .recharts-surface,
+  .recharts-cartesian-grid { background: transparent !important; }
+
+  /* Recharts varsayılan tooltip — beyaz metin yerine HUD teması */
+  .recharts-default-tooltip {
+    background: rgba(6, 9, 16, 0.94) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(0, 242, 255, 0.28) !important;
+    border-radius: 0 !important;
+    box-shadow:
+      0 0 32px rgba(0, 242, 255, 0.12),
+      0 12px 40px rgba(0, 0, 0, 0.55) !important;
+    padding: 12px 14px !important;
+    font-family: "JetBrains Mono", ui-monospace, monospace !important;
+  }
+  .recharts-tooltip-label {
+    color: #00F2FF !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    margin-bottom: 6px !important;
+    text-shadow: 0 0 14px rgba(0, 242, 255, 0.35) !important;
+  }
+  .recharts-tooltip-item-list { margin: 0 !important; padding: 0 !important; }
+  .recharts-tooltip-item {
+    color: #99AAB8 !important;
+    font-size: 11px !important;
+    padding: 2px 0 !important;
+  }
+  .recharts-tooltip-item-name,
+  .recharts-tooltip-item-separator {
+    color: #506070 !important;
+    font-weight: 600 !important;
+  }
+  .recharts-tooltip-item-value {
+    color: #BCC8D4 !important;
+    font-weight: 700 !important;
+  }
+  .recharts-tooltip-cursor { fill: #00F2FF08 !important; stroke: #00F2FF25 !important; }
+}
+
+@layer components {
+  /* Ana sayfa — Anthropic Mars hikâyesi tarzı film greni */
+  .landing-grain {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Core panel with subtle neon border glow */
+  .n-panel {
+    position: relative;
+    background: #080C14;
+    border: 1px solid #0F1923;
+    box-shadow: inset 0 1px 0 #ffffff04;
+  }
+  .n-panel::before {
+    content: "";
+    position: absolute; inset: -1px;
+    background: linear-gradient(135deg, #00F2FF10, transparent 40%, transparent 60%, #FF00FF10);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* HUD-style panel with corner accents */
+  .n-hud {
+    position: relative;
+    background: #080C14;
+    border: 1px solid #0D1520;
+  }
+  .n-hud::before,
+  .n-hud::after {
+    content: "";
+    position: absolute;
+    width: 12px; height: 12px;
+    border-color: #00F2FF50;
+    border-style: solid;
+    pointer-events: none;
+  }
+  .n-hud::before {
+    top: -1px; left: -1px;
+    border-width: 1px 0 0 1px;
+  }
+  .n-hud::after {
+    bottom: -1px; right: -1px;
+    border-width: 0 1px 1px 0;
+  }
+
+  .n-btn {
+    @apply px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer;
+    border: 1px solid transparent;
+  }
+  .n-btn-primary {
+    @apply n-btn;
+    background: linear-gradient(135deg, #00F2FF15, #00F2FF08);
+    border-color: #00F2FF40;
+    color: #00F2FF;
+    text-shadow: 0 0 8px #00F2FF40;
+  }
+  .n-btn-primary:hover {
+    background: linear-gradient(135deg, #00F2FF25, #00F2FF12);
+    border-color: #00F2FF70;
+    box-shadow: 0 0 16px #00F2FF15, inset 0 0 16px #00F2FF08;
+  }
+  .n-btn-danger {
+    @apply n-btn;
+    background: linear-gradient(135deg, #FF336615, #FF336608);
+    border-color: #FF336640;
+    color: #FF3366;
+    text-shadow: 0 0 8px #FF336640;
+  }
+  .n-btn-danger:hover {
+    background: linear-gradient(135deg, #FF336625, #FF336612);
+    border-color: #FF336670;
+    box-shadow: 0 0 16px #FF336615;
+  }
+  .n-label {
+    @apply text-xs font-bold uppercase tracking-widest;
+    color: #4A5568;
+    letter-spacing: 0.15em;
+  }
+  .n-divider {
+    @apply w-full h-px;
+    background: linear-gradient(to right, transparent, #0F192380, transparent);
+  }
+}
+
+@layer utilities {
+  .text-glow-cyan { text-shadow: 0 0 6px #00F2FF60, 0 0 20px #00F2FF20, 0 0 40px #00F2FF10; }
+  .text-glow-magenta { text-shadow: 0 0 6px #FF00FF60, 0 0 20px #FF00FF20; }
+  .text-glow-green { text-shadow: 0 0 6px #00FF8860, 0 0 20px #00FF8820; }
+  .text-glow-red { text-shadow: 0 0 6px #FF336660, 0 0 20px #FF336620; }
+  .neon-border-cyan { box-shadow: 0 0 8px #00F2FF15, inset 0 0 8px #00F2FF08; border-color: #00F2FF30; }
+  .neon-border-red { box-shadow: 0 0 8px #FF336615, inset 0 0 8px #FF336608; border-color: #FF336630; }
+}
+
+/* Leaflet overrides for cyberpunk theme */
+.leaflet-container { background: #0A0A0A !important; font-family: "JetBrains Mono", monospace !important; }
+.leaflet-control-zoom { border: 1px solid #0D1520 !important; }
+.leaflet-control-zoom a { background: #060910 !important; color: #00F2FF !important; border-color: #0D1520 !important; }
+.leaflet-control-zoom a:hover { background: #0A1020 !important; }
+.leaflet-popup-content-wrapper { background: transparent !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+.leaflet-popup-tip-container { display: none !important; }
+.leaflet-popup-content { margin: 0 !important; }
+.leaflet-popup-close-button { color: #506070 !important; }
+.leaflet-tile { filter: saturate(0.7) brightness(0.85) !important; }
+
+@keyframes float-up {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes scan-sweep {
+  0% { top: -10%; opacity: 0; }
+  10% { opacity: 0.06; }
+  90% { opacity: 0.06; }
+  100% { top: 110%; opacity: 0; }
+}
+.animate-float { animation: float-up 3s ease-in-out infinite; }

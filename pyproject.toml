@@ -1,0 +1,30 @@
+[tool.pytest.ini_options]
+# Testler veritabanı gerektirmez; backend/ modülleri doğrudan import edilir.
+pythonpath = ["backend"]
+testpaths = ["backend/tests"]
+addopts = "-q --strict-markers"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "frontend", "backend/alembic/versions"]
+
+[tool.ruff.lint]
+# Hata yakalayan kurallar seçildi. Tip-annotation modernizasyonu (UP) ve import
+# sıralaması (I) kasıtlı olarak dışarıda: çalışan kodda ~160 satırlık salt
+# biçimsel değişiklik yaratıyor, davranışsal bir kazanç sağlamıyor.
+select = ["E", "F", "W", "B"]
+ignore = [
+  "E501", # satır uzunluğu formatter'a bırakılır
+  "B008", # FastAPI Depends()/Header() varsayılan argümanda kullanılır
+]
+
+[tool.ruff.lint.per-file-ignores]
+# conftest.py ortam değişkenlerini import'lardan önce kurmak zorunda
+"backend/tests/*" = ["E402"]
+# env.py load_dotenv()'i models import'undan ÖNCE çağırmak zorunda:
+# models -> database zinciri import anında DATABASE_URL bekliyor.
+"backend/alembic/env.py" = ["E402"]

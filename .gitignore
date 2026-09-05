@@ -1,0 +1,34 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+*.egg-info/
+.vite/
+venv/
+.venv/
+
+# Kimlik bilgileri — asla commit edilmez
+.env
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+kaggle.json
+**/.kaggle/
+
+# Yerel çalışma çıktıları
+*.log
+data.zip
+reference.pdf
+
+# NASA veri seti (scripts/fetch_dataset.py ile indirilir)
+*.npy
+backend/data/train/
+backend/data/test/
+backend/data/2018-05-19_15.00.10/models/
+backend/data/2018-05-19_15.00.10/y_hat/
+backend/data/2018-05-19_15.00.10/smoothed_errors/
+
+# Çalışma zamanı model durumu (pickle)
+backend/data/river_model_state.pkl
+backend/data/rl_qtable.pkl

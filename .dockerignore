@@ -1,0 +1,13 @@
+.venv
+venv
+frontend/node_modules
+frontend/dist
+**/__pycache__
+**/.git
+**/.kaggle
+kaggle.json
+.env
+*.pkl
+backend/data/train
+backend/data/test
+backend/data/2018-05-19_15.00.10

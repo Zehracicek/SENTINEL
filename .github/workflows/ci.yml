@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Bağımlılıkları kur
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check backend scripts deploy_sync.py
+
+      - name: Testler (pytest)
+        # Testler veritabanına bağlanmaz; conftest.py sahte bir DATABASE_URL kurar.
+        run: pytest backend/tests
+
+  migrations:
+    name: Alembic göçleri (gerçek Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mars_rover_db
+          POSTGRES_USER: mars_user
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Bağımlılıkları kur
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Göçleri baştan sona uygula
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://mars_user:ci_test_password@localhost:5432/mars_rover_db
+          DATABASE_URL_SYNC: postgresql://mars_user:ci_test_password@localhost:5432/mars_rover_db
+        run: alembic upgrade head
+
+      - name: Geri alma yolunu doğrula
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://mars_user:ci_test_password@localhost:5432/mars_rover_db
+          DATABASE_URL_SYNC: postgresql://mars_user:ci_test_password@localhost:5432/mars_rover_db
+        run: alembic downgrade -1 && alembic upgrade head
+
+  frontend:
+    name: Frontend (vitest + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Bağımlılıkları kur
+        working-directory: frontend
+        run: npm ci
+
+      - name: Testler (vitest)
+        working-directory: frontend
+        run: npm test
+
+      - name: Derleme
+        working-directory: frontend
+        run: npm run build

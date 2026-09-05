@@ -1,0 +1,23 @@
+# Kimlik bilgileri kök dizindeki .env dosyasından okunur (.env.example'a bakın).
+# Port yalnızca 127.0.0.1'e bağlanır; veritabanı ağdan erişilebilir olmaz.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mars_rover_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?kök .env dosyasında POSTGRES_DB tanımlayın}
+      POSTGRES_USER: ${POSTGRES_USER:?kök .env dosyasında POSTGRES_USER tanımlayın}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?kök .env dosyasında POSTGRES_PASSWORD tanımlayın}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - mars_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mars_pg_data:
