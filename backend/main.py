@@ -130,6 +130,7 @@ async def stats_broadcast_loop() -> None:
                         "energy_stats": energy.get_energy_stats(),
                         "rl_stats": rl.get_rl_stats(),
                         "rover_thinking_enabled": processor.rover_thinking_enabled,
+                        "groq_configured": rover_ai.get_usage_stats().get("enabled", False),
                         "simulation_interval_seconds": SIMULATION_INTERVAL_SEC,
                         "earth_cloud_state": earth.get_dashboard_state(),
                         "orbiter_stats": orb.get_ws_stats(),

@@ -109,6 +109,12 @@ export default function RoverThinking({ entries = [], stats = null }) {
           {toggleError || writeAuthHint()}
         </p>
       )}
+      {stats && stats.groq_configured === false && (
+        <p className="text-xs font-mono leading-relaxed" style={{ color: "#FFAA00" }}>
+          Groq anahtarı yok; düşünce kartları üretilmez. backend/.env içindeki GROQ_API_KEY
+          bir kez yazılır, sonraki açılışlarda kalır.
+        </p>
+      )}
 
       <div
         className="rounded-lg border px-4 py-3 text-xs font-mono leading-relaxed"

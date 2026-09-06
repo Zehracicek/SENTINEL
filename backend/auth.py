@@ -10,8 +10,12 @@ from __future__ import annotations
 
 import hmac
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import Header, HTTPException, status
+
+load_dotenv(Path(__file__).resolve().parent / ".env", override=True)
 
 
 def require_api_token(x_api_token: str = Header(default="")) -> None:

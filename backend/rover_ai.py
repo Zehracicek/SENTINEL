@@ -29,7 +29,8 @@ import httpx
 logger = logging.getLogger(__name__)
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL_ID = "llama-3.3-70b-versatile"
+# llama-3.3-70b-versatile Ağustos 2026'da kapatıldı; ücretsiz katmanda 404 verir.
+MODEL_ID = (os.environ.get("GROQ_MODEL") or "openai/gpt-oss-20b").strip()
 
 _REQUEST_TIMEOUT = 25.0
 _MAX_ATTEMPTS = 3

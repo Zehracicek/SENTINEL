@@ -12,6 +12,7 @@ import numpy as np
 import rover_ai
 from compressor import compress_readings_delta_deflate, readings_to_f64_payload
 from routers.websocket import broadcast
+from runtime_settings import load_thinking_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class EdgeProcessor:
             OrderedDict()
         )
         self._rover_think_sem = asyncio.Semaphore(2)
-        self.rover_thinking_enabled: bool = False
+        self.rover_thinking_enabled: bool = load_thinking_enabled()
 
     def _schedule_rover_think(
         self,
@@ -152,15 +153,12 @@ class EdgeProcessor:
         }
         async with self._rover_think_sem:
             try:
-                out = await asyncio.wait_for(rover_ai.think(ctx), timeout=10.0)
+                out = await asyncio.wait_for(rover_ai.think(ctx), timeout=45.0)
             except asyncio.TimeoutError:
-                out = {
-                    "thinking": "AI thinking devre dışı",
-                    "steps": [],
-                    "decision": "TX" if reading.get("_uplink_eligible") else "DROP",
-                    "duration_ms": 0,
-                    "model": "fallback",
-                }
+                return
+        model = str(out.get("model") or "")
+        if model in {"rate_limited", "skipped", "fallback"}:
+            return
         ts = datetime.now(timezone.utc).isoformat()
         uplink_ok = bool(reading.get("_uplink_eligible"))
         await broadcast(
@@ -374,10 +372,14 @@ class EdgeProcessor:
             )
 
         energy_level = float(self._energy.get_battery_level()) if self._energy else 50.0
-        for reading in processed:
-            if float(reading.get("anomaly_score", 0)) < 50:
-                continue
-            self._schedule_rover_think(reading, processed, adj, action_idx, energy_level)
+        # Tur başına tek Groq çağrısı: 12 kanalın hepsi ≥50 olunca dakikalık
+        # kota (varsayılan 6) bir anda doluyor ve kartlar "kotası doldu" oluyor.
+        think_candidates = [
+            r for r in processed if float(r.get("anomaly_score", 0)) >= 50
+        ]
+        if think_candidates:
+            top = max(think_candidates, key=lambda r: float(r.get("anomaly_score", 0)))
+            self._schedule_rover_think(top, processed, adj, action_idx, energy_level)
 
         self._last_payload_serialized = 0
         self._last_payload_compressed = 0

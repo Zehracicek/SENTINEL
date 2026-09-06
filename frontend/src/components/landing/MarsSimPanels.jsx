@@ -4,6 +4,7 @@
  */
 import {
   Suspense,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,7 +13,6 @@ import {
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Bounds,
-  Environment,
   GizmoHelper,
   GizmoViewcube,
   Grid,
@@ -28,8 +28,16 @@ import {
 } from "framer-motion";
 import * as THREE from "three";
 import { ROVER_GLB_URL } from "../../utils/publicUrl";
+import BindInvalidate from "./BindInvalidate";
 
 useGLTF.preload(ROVER_GLB_URL);
+
+const PANEL_GL = {
+  antialias: false,
+  alpha: false,
+  powerPreference: "high-performance",
+  stencil: false,
+};
 
 function heightAt(x, z) {
   return (
@@ -42,22 +50,22 @@ function heightAt(x, z) {
 function MarsRoverInBounds({ margin = 1.18, y = 0 }) {
   const gltf = useGLTF(ROVER_GLB_URL);
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const invalidate = useThree((s) => s.invalidate);
 
   useLayoutEffect(() => {
     scene.traverse((obj) => {
       if (obj.isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        if (obj.material && "envMapIntensity" in obj.material) {
-          obj.material.envMapIntensity = 0.75;
-        }
+        obj.castShadow = false;
+        obj.receiveShadow = false;
+        obj.frustumCulled = true;
       }
     });
-  }, [scene]);
+    invalidate();
+  }, [scene, invalidate]);
 
   return (
     <group position={[0, y, 0]}>
-      <Bounds fit clip margin={margin}>
+      <Bounds fit margin={margin}>
         <primitive object={scene} />
       </Bounds>
     </group>
@@ -66,8 +74,8 @@ function MarsRoverInBounds({ margin = 1.18, y = 0 }) {
 
 function cyanPathPoints(seed = 0) {
   const pts = [];
-  for (let i = 0; i < 48; i++) {
-    const t = i / 47;
+  for (let i = 0; i < 32; i++) {
+    const t = i / 31;
     const x = Math.sin(t * Math.PI * 1.35 + seed) * 7.5 + 1.2;
     const z = -t * 22 + 5;
     const y = 0.06 + Math.sin(t * 8 + seed) * 0.08;
@@ -85,56 +93,33 @@ function HyperdriveScene({ phaseRef }) {
       <color attach="background" args={["#080706"]} />
       <fog attach="fog" args={["#8f7355", 18, 52]} />
 
-      <ambientLight intensity={0.35} color="#c4a882" />
-      <directionalLight
-        position={[12, 22, 8]}
-        intensity={1.15}
-        color="#ffe8d0"
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <directionalLight
-        position={[-10, 8, -6]}
-        intensity={0.25}
-        color="#00F2FF"
-      />
+      <ambientLight intensity={0.42} color="#c4a882" />
+      <directionalLight position={[12, 22, 8]} intensity={1.05} color="#ffe8d0" />
+      <directionalLight position={[-10, 8, -6]} intensity={0.25} color="#00F2FF" />
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[120, 120]} />
-        <meshStandardMaterial color="#5c5348" roughness={0.92} metalness={0.06} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+        <planeGeometry args={[80, 80]} />
+        <meshBasicMaterial color="#5c5348" />
       </mesh>
 
       <Grid
         position={[0, 0.01, 0]}
         infiniteGrid
-        fadeDistance={62}
+        fadeDistance={48}
         fadeStrength={4}
-        cellSize={0.9}
-        sectionSize={9}
+        cellSize={1.2}
+        sectionSize={12}
         sectionColor="#146b32"
         cellColor="#1f7f40"
-        sectionThickness={1.15}
-        cellThickness={0.55}
+        sectionThickness={1}
+        cellThickness={0.45}
       />
 
-      <Line
-        points={pathA}
-        color="#40ffe8"
-        lineWidth={1}
-        transparent
-        opacity={0.92}
-      />
-      <Line
-        points={pathB}
-        color="#5af0ff"
-        lineWidth={1}
-        transparent
-        opacity={0.65}
-      />
+      <Line points={pathA} color="#40ffe8" lineWidth={1} transparent opacity={0.92} />
+      <Line points={pathB} color="#5af0ff" lineWidth={1} transparent opacity={0.65} />
 
       <Text
-        position={[pathA[12].x, 0.45, pathA[12].z]}
+        position={[pathA[8].x, 0.45, pathA[8].z]}
         fontSize={0.32}
         color="#7ee8d4"
         anchorX="center"
@@ -145,7 +130,7 @@ function HyperdriveScene({ phaseRef }) {
         MobSketch_03
       </Text>
       <Text
-        position={[pathB[28].x, 0.45, pathB[28].z]}
+        position={[pathB[18].x, 0.45, pathB[18].z]}
         fontSize={0.3}
         color="#9cf0ff"
         anchorX="center"
@@ -163,12 +148,10 @@ function HyperdriveScene({ phaseRef }) {
       </ScrollRig>
 
       <HyperdriveCamera phaseRef={phaseRef} />
-      <Environment preset="sunset" environmentIntensity={0.35} />
     </>
   );
 }
 
-/** Bölüm kaydırmasına göre rover grubunu hafifçe döndürür (zaman döngüsü yok). */
 function ScrollRig({ phaseRef, children }) {
   const g = useRef(null);
   useFrame(() => {
@@ -186,22 +169,28 @@ function ScrollRig({ phaseRef, children }) {
 
 function HyperdriveCamera({ phaseRef }) {
   const { camera } = useThree();
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const look = useMemo(() => new THREE.Vector3(), []);
+
   useFrame(() => {
     const p = Math.min(1, Math.max(0, phaseRef?.current ?? 0));
     const orbit = p * Math.PI * 2.05;
     const r = 8.8 + Math.sin(p * Math.PI) * 3.1;
-    const tx = Math.sin(orbit) * r;
-    const tz = Math.cos(orbit) * r + 1.8;
-    const ty = 2.2 + p * 3.4 + Math.sin(p * Math.PI) * 0.75;
-    camera.position.lerp(new THREE.Vector3(tx, ty, tz), 0.14);
-    camera.lookAt(0, 1.05 + p * 0.35, -3.2 + p * 2.4);
+    target.set(
+      Math.sin(orbit) * r,
+      2.2 + p * 3.4 + Math.sin(p * Math.PI) * 0.75,
+      Math.cos(orbit) * r + 1.8,
+    );
+    camera.position.lerp(target, 0.14);
+    look.set(0, 1.05 + p * 0.35, -3.2 + p * 2.4);
+    camera.lookAt(look);
   });
   return null;
 }
 
 function CaspianHeightTerrain() {
   const geo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(30, 30, 80, 80);
+    const g = new THREE.PlaneGeometry(30, 30, 36, 36);
     g.rotateX(-Math.PI / 2);
     const pos = g.attributes.position;
     for (let i = 0; i < pos.count; i++) {
@@ -213,46 +202,49 @@ function CaspianHeightTerrain() {
     return g;
   }, []);
 
-  const redMarkers = useMemo(() => {
+  const markerMatrices = useMemo(() => {
+    const dummy = new THREE.Object3D();
     const out = [];
     const rng = (i) => {
       const s = Math.sin(i * 12.9898) * 43758.5453;
       return s - Math.floor(s);
     };
-    for (let i = 0; i < 55; i++) {
+    for (let i = 0; i < 28; i++) {
       const x = (rng(i) - 0.5) * 22;
       const z = (rng(i + 17) - 0.5) * 22;
-      const y = heightAt(x, z) + 0.04;
-      out.push([x, y, z]);
+      dummy.position.set(x, heightAt(x, z) + 0.04, z);
+      dummy.updateMatrix();
+      out.push(dummy.matrix.clone());
     }
     return out;
   }, []);
 
+  const instRef = useRef(null);
+  useLayoutEffect(() => {
+    const mesh = instRef.current;
+    if (!mesh) return;
+    markerMatrices.forEach((m, i) => mesh.setMatrixAt(i, m));
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [markerMatrices]);
+
   return (
     <group>
-      <mesh geometry={geo} receiveShadow castShadow>
-        <meshStandardMaterial color="#e4e8ef" roughness={0.94} metalness={0.04} />
+      <mesh geometry={geo}>
+        <meshLambertMaterial color="#e4e8ef" />
       </mesh>
       <mesh geometry={geo} position={[0, 0.004, 0]} renderOrder={1}>
         <meshBasicMaterial
           color="#8899aa"
           wireframe
           transparent
-          opacity={0.14}
+          opacity={0.12}
           depthWrite={false}
         />
       </mesh>
-      {redMarkers.map((pos, i) => (
-        <mesh key={i} position={pos} renderOrder={2}>
-          <boxGeometry args={[0.09, 0.06, 0.09]} />
-          <meshStandardMaterial
-            color="#c41e3a"
-            emissive="#5a0a14"
-            emissiveIntensity={0.35}
-            roughness={0.6}
-          />
-        </mesh>
-      ))}
+      <instancedMesh ref={instRef} args={[undefined, undefined, markerMatrices.length]}>
+        <boxGeometry args={[0.09, 0.06, 0.09]} />
+        <meshBasicMaterial color="#c41e3a" />
+      </instancedMesh>
     </group>
   );
 }
@@ -261,8 +253,8 @@ function darkArcLines() {
   const lines = [];
   for (let k = 0; k < 5; k++) {
     const pts = [];
-    for (let i = 0; i < 24; i++) {
-      const t = i / 23;
+    for (let i = 0; i < 16; i++) {
+      const t = i / 15;
       const spread = (k - 2) * 0.35;
       const x = Math.sin(t * Math.PI * 0.85 + spread) * 2.8;
       const z = -t * 6.5 - 0.5;
@@ -276,14 +268,15 @@ function darkArcLines() {
 
 function CaspianScene({ phaseRef }) {
   const arcs = useMemo(() => darkArcLines(), []);
+  const userNavUntil = useRef(0);
 
   return (
     <>
       <color attach="background" args={["#0a0b0d"]} />
       <fog attach="fog" args={["#0a0b0d", 14, 42]} />
 
-      <ambientLight intensity={0.45} />
-      <directionalLight position={[8, 16, 6]} intensity={0.85} castShadow />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[8, 16, 6]} intensity={0.8} />
       <directionalLight position={[-6, 4, -4]} intensity={0.2} color="#a8c4ff" />
 
       <CaspianHeightTerrain />
@@ -306,19 +299,24 @@ function CaspianScene({ phaseRef }) {
         />
       ))}
 
-      <CaspianCamera phaseRef={phaseRef} />
+      <CaspianCamera phaseRef={phaseRef} userNavUntil={userNavUntil} />
 
-      <GizmoHelper alignment="top-right" margin={[72, 72]}>
+      <GizmoHelper
+        alignment="top-right"
+        margin={[72, 72]}
+        onUpdate={() => {
+          userNavUntil.current = performance.now() + 12000;
+        }}
+      >
         <GizmoViewcube
           opacity={0.88}
           color="#2a3344"
           hoverColor="#00F2FF"
           textColor="#e2e8f0"
           strokeColor="#0f1218"
+          faces={["Sağ", "Sol", "Üst", "Alt", "Ön", "Arka"]}
         />
       </GizmoHelper>
-
-      <Environment preset="city" environmentIntensity={0.25} />
     </>
   );
 }
@@ -353,7 +351,7 @@ function FovCone({ phaseRef }) {
       rotation={[0.25, -0.4, 0.15]}
       renderOrder={3}
     >
-      <coneGeometry args={[0.95, 2.4, 28, 1, true]} />
+      <coneGeometry args={[0.95, 2.4, 16, 1, true]} />
       <meshBasicMaterial
         color="#f5d547"
         transparent
@@ -365,18 +363,26 @@ function FovCone({ phaseRef }) {
   );
 }
 
-function CaspianCamera({ phaseRef }) {
+function CaspianCamera({ phaseRef, userNavUntil }) {
   const { camera } = useThree();
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const look = useMemo(() => new THREE.Vector3(), []);
+
   useFrame(() => {
+    if (userNavUntil?.current && performance.now() < userNavUntil.current) {
+      return;
+    }
     const p = Math.min(1, Math.max(0, phaseRef?.current ?? 0));
     const orbit = -p * Math.PI * 1.75;
     const r = 9.5 + Math.cos(p * Math.PI) * 3.2;
-    const tx = Math.sin(orbit) * r * 0.88 + 3.6;
-    const tz = Math.cos(orbit) * r * 0.78 + 1.8;
-    const ty = 3.8 + p * 2.8;
-    camera.position.lerp(new THREE.Vector3(tx, ty, tz), 0.12);
-    const lookY = heightAt(0, 0) + 0.85 + p * 0.25;
-    camera.lookAt(-0.4 + p * 0.3, lookY, -1.2 + p * 0.9);
+    target.set(
+      Math.sin(orbit) * r * 0.88 + 3.6,
+      3.8 + p * 2.8,
+      Math.cos(orbit) * r * 0.78 + 1.8,
+    );
+    camera.position.lerp(target, 0.12);
+    look.set(-0.4 + p * 0.3, heightAt(0, 0) + 0.85 + p * 0.25, -1.2 + p * 0.9);
+    camera.lookAt(look);
   });
   return null;
 }
@@ -401,7 +407,24 @@ function CaspianTelemetryOverlay({ scrollP = 0 }) {
   );
 }
 
-function usePanelScrollPhase(sectionRef) {
+function useInViewMount(sectionRef) {
+  const [mount, setMount] = useState(false);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return undefined;
+    const io = new IntersectionObserver(
+      ([entry]) => setMount(Boolean(entry?.isIntersecting)),
+      { rootMargin: "18% 0px", threshold: 0.02 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [sectionRef]);
+
+  return mount;
+}
+
+function usePanelScrollPhase(sectionRef, invalidateRef) {
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start 0.88", "end 0.12"],
@@ -413,10 +436,16 @@ function usePanelScrollPhase(sectionRef) {
   });
   const phaseRef = useRef(0);
   const [uiP, setUiP] = useState(0);
+  const lastUi = useRef(0);
 
   useMotionValueEvent(spring, "change", (v) => {
     phaseRef.current = v;
-    setUiP(v);
+    invalidateRef.current?.();
+    const now = performance.now();
+    if (now - lastUi.current > 80) {
+      lastUi.current = now;
+      setUiP(v);
+    }
   });
   useLayoutEffect(() => {
     const v = spring.get();
@@ -430,20 +459,26 @@ function usePanelScrollPhase(sectionRef) {
 const panelChrome =
   "relative overflow-hidden border border-white/[0.08] bg-[#050403]/90 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.85)]";
 
+const panelCanvasFallback = (
+  <div className="flex h-full items-center justify-center bg-[#060910] font-mono text-xs text-[#506070]">
+    Sahne yükleniyor…
+  </div>
+);
+
 export function HyperdrivePanel() {
-  const [mount, setMount] = useState(false);
   const sectionRef = useRef(null);
-  const { phaseRef } = usePanelScrollPhase(sectionRef);
+  const invalidateRef = useRef(null);
+  const mount = useInViewMount(sectionRef);
+  const { phaseRef } = usePanelScrollPhase(sectionRef, invalidateRef);
 
   return (
     <motion.section
       ref={sectionRef}
       id="mars-hyperdrive"
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.12 }}
-      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-      onViewportEnter={() => setMount(true)}
+      viewport={{ once: true, amount: 0.08 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className="relative z-10 px-4 py-12 sm:px-8 sm:py-16"
     >
       <div className={`mx-auto max-w-6xl ${panelChrome}`}>
@@ -451,27 +486,25 @@ export function HyperdrivePanel() {
           HYPERDRIVE
         </p>
         <div className="relative h-[min(52vh,480px)] w-full sm:h-[min(56vh,520px)]">
-          {mount && (
-            <Suspense
-              fallback={
-                <div className="flex h-full items-center justify-center bg-[#060910] font-mono text-xs text-[#506070]">
-                  Sahne yükleniyor…
-                </div>
-              }
-            >
+          {mount ? (
+            <Suspense fallback={panelCanvasFallback}>
               <Canvas
-                shadows
-                dpr={[1, 1.5]}
-                gl={{ antialias: true, alpha: false }}
+                frameloop="demand"
+                shadows={false}
+                dpr={1}
+                gl={PANEL_GL}
                 camera={{ position: [7, 5, 12], fov: 42, near: 0.1, far: 80 }}
                 onCreated={({ gl }) => {
                   gl.toneMapping = THREE.ACESFilmicToneMapping;
                   gl.toneMappingExposure = 1.02;
                 }}
               >
+                <BindInvalidate invalidateRef={invalidateRef} />
                 <HyperdriveScene phaseRef={phaseRef} />
               </Canvas>
             </Suspense>
+          ) : (
+            panelCanvasFallback
           )}
         </div>
         <p className="border-t border-[#0D1520] px-4 py-2 text-right font-mono text-[9px] uppercase tracking-[0.25em] text-[#3A4A5C]">
@@ -492,19 +525,19 @@ export function HyperdrivePanel() {
 }
 
 export function CaspianPanel() {
-  const [mount, setMount] = useState(false);
   const sectionRef = useRef(null);
-  const { phaseRef, uiP } = usePanelScrollPhase(sectionRef);
+  const invalidateRef = useRef(null);
+  const mount = useInViewMount(sectionRef);
+  const { phaseRef, uiP } = usePanelScrollPhase(sectionRef, invalidateRef);
 
   return (
     <motion.section
       ref={sectionRef}
       id="mars-caspian"
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.12 }}
-      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-      onViewportEnter={() => setMount(true)}
+      viewport={{ once: true, amount: 0.08 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className="relative z-10 px-4 py-12 sm:px-8 sm:py-16"
     >
       <div className={`mx-auto max-w-6xl ${panelChrome}`}>
@@ -520,27 +553,25 @@ export function CaspianPanel() {
         </div>
         <div className="relative h-[min(52vh,480px)] w-full sm:h-[min(56vh,520px)]">
           <CaspianTelemetryOverlay scrollP={uiP} />
-          {mount && (
-            <Suspense
-              fallback={
-                <div className="flex h-full items-center justify-center bg-[#060910] font-mono text-xs text-[#506070]">
-                  Sahne yükleniyor…
-                </div>
-              }
-            >
+          {mount ? (
+            <Suspense fallback={panelCanvasFallback}>
               <Canvas
-                shadows
-                dpr={[1, 1.5]}
-                gl={{ antialias: true, alpha: false }}
+                frameloop="always"
+                shadows={false}
+                dpr={1}
+                gl={PANEL_GL}
                 camera={{ position: [8, 6, 10], fov: 40, near: 0.1, far: 80 }}
                 onCreated={({ gl }) => {
                   gl.toneMapping = THREE.ACESFilmicToneMapping;
                   gl.toneMappingExposure = 0.98;
                 }}
               >
+                <BindInvalidate invalidateRef={invalidateRef} />
                 <CaspianScene phaseRef={phaseRef} />
               </Canvas>
             </Suspense>
+          ) : (
+            panelCanvasFallback
           )}
         </div>
         <p className="border-t border-[#0D1520] px-4 py-2 text-right font-mono text-[9px] uppercase tracking-[0.25em] text-[#3A4A5C]">

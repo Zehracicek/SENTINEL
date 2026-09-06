@@ -107,11 +107,11 @@ const PULL_QUOTES = [
 const easeOut = [0.22, 1, 0.36, 1];
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 48 },
+  hidden: { opacity: 0, y: 16 },
   show: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.75, delay: i * 0.06, ease: easeOut },
+    transition: { duration: 0.45, delay: i * 0.04, ease: easeOut },
   }),
 };
 
@@ -121,20 +121,20 @@ const stagger = {
 
 function useScrollSpy(stepRefs, aiRef, sectionIds) {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
-  const [aiActive, setAiActive] = useState(false);
   const [railIndex, setRailIndex] = useState(0);
 
   useEffect(() => {
+    let raf = 0;
     const measure = () => {
+      raf = 0;
       const mid = window.innerHeight * 0.44;
       let aiOn = false;
       if (aiRef.current) {
         const r = aiRef.current.getBoundingClientRect();
         aiOn = r.top < mid && r.bottom > mid;
       }
-      setAiActive(aiOn);
       if (aiOn) {
-        setActiveStepIndex(-1);
+        setActiveStepIndex((prev) => (prev === -1 ? prev : -1));
       } else {
         let best = 0;
         let bestDist = Infinity;
@@ -149,7 +149,7 @@ function useScrollSpy(stepRefs, aiRef, sectionIds) {
             best = i;
           }
         });
-        setActiveStepIndex(best);
+        setActiveStepIndex((prev) => (prev === best ? prev : best));
       }
 
       let bestR = 0;
@@ -166,18 +166,23 @@ function useScrollSpy(stepRefs, aiRef, sectionIds) {
           bestR = i;
         }
       });
-      setRailIndex(bestR);
+      setRailIndex((prev) => (prev === bestR ? prev : bestR));
+    };
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(measure);
     };
     measure();
-    window.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      window.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, [aiRef, stepRefs, sectionIds]);
 
-  return { activeStepIndex, aiActive, railIndex };
+  return { activeStepIndex, railIndex };
 }
 
 function ProgressRail({ ids, labels, activeVisualIndex }) {
@@ -248,25 +253,31 @@ export default function LandingPage() {
   const stepRefs = useRef([]);
   const aiRef = useRef(null);
   const roverProgressRef = useRef(0);
-  const { activeStepIndex, aiActive, railIndex } = useScrollSpy(
+  const roverInvalidateRef = useRef(null);
+  const { activeStepIndex, railIndex } = useScrollSpy(
     stepRefs,
     aiRef,
     RAIL_IDS,
   );
   const [expandedId, setExpandedId] = useState(null);
+  const midHeavy = railIndex >= 2 && railIndex <= 4;
 
   const { scrollYProgress } = useScroll();
   const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 64,
-    damping: 28,
-    mass: 0.9,
+    stiffness: 90,
+    damping: 32,
+    mass: 0.7,
   });
 
   useMotionValueEvent(smoothProgress, "change", (v) => {
     roverProgressRef.current = v;
+    if (!midHeavy && document.visibilityState === "visible") {
+      roverInvalidateRef.current?.();
+    }
   });
   useLayoutEffect(() => {
     roverProgressRef.current = smoothProgress.get();
+    roverInvalidateRef.current?.();
   }, [smoothProgress]);
 
   const heroOpacity = useTransform(smoothProgress, [0, 0.14], [1, 0]);
@@ -290,7 +301,11 @@ export default function LandingPage() {
     >
       <CanvasErrorBoundary>
         <Suspense fallback={null}>
-          <LandingRoverCanvas progressRef={roverProgressRef} />
+          <LandingRoverCanvas
+            progressRef={roverProgressRef}
+            invalidateRef={roverInvalidateRef}
+            active={!midHeavy}
+          />
         </Suspense>
       </CanvasErrorBoundary>
 
@@ -313,7 +328,7 @@ export default function LandingPage() {
         className="sticky top-0 z-40"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#00F2FF]/45 to-transparent" />
-        <div className="border-b border-[#0D1520] bg-[#060910]/90 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.75)] backdrop-blur-2xl backdrop-saturate-150">
+        <div className="border-b border-[#0D1520] bg-[#060910]/94 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.75)]">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3.5 sm:px-8 sm:py-4">
             <Link
               to="/"
@@ -355,7 +370,7 @@ export default function LandingPage() {
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Link
                   to="/veri_akisi"
-                  className="block rounded-full px-3.5 py-2.5 font-mono text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8899AA] transition-colors hover:bg-[#00F2FF]/10 hover:text-[#00F2FF] sm:px-4 sm:text-[10px]"
+                  className="block rounded-full px-3.5 py-2.5 font-mono text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8899AA] hover:bg-[#00F2FF]/10 hover:text-[#00F2FF] sm:px-4 sm:text-[10px]"
                 >
                   Veri akışı
                 </Link>
@@ -519,7 +534,7 @@ export default function LandingPage() {
           <motion.div
             initial="hidden"
             whileInView="show"
-            viewport={{ once: true, margin: "-12%" }}
+            viewport={{ once: true, margin: "-8%" }}
             variants={stagger}
             className="mx-auto mb-10 max-w-3xl text-center sm:text-left"
           >
@@ -559,16 +574,10 @@ export default function LandingPage() {
               className="relative h-[min(52vh,420px)] min-w-[min(92vw,920px)] flex-shrink-0 snap-center border-r border-[#0D1520] first:border-l first:border-[#0D1520]"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[#060910] to-[#080C14]" />
-              <motion.div
-                className="absolute inset-0"
+              <div
+                className="absolute inset-0 opacity-70"
                 style={{
                   background: `radial-gradient(ellipse 80% 60% at 30% 25%, ${f.tone}35, transparent 55%)`,
-                }}
-                animate={{ opacity: [0.5, 0.85, 0.5] }}
-                transition={{
-                  duration: 6 + i * 0.4,
-                  repeat: Infinity,
-                  ease: "easeInOut",
                 }}
               />
               <InstrumentStripViz tone={f.tone} index={i} />
@@ -661,20 +670,19 @@ export default function LandingPage() {
                   ref={setStepRef(i)}
                   initial="hidden"
                   whileInView="show"
-                  viewport={{ once: false, amount: 0.25, margin: "-8% 0px" }}
+                  viewport={{ once: true, amount: 0.2, margin: "-6% 0px" }}
                   variants={{
-                    hidden: { opacity: 0, y: 56 },
+                    hidden: { opacity: 0, y: 20 },
                     show: {
                       opacity: 1,
                       y: 0,
-                      transition: { duration: 0.72, ease: easeOut },
+                      transition: { duration: 0.4, ease: easeOut },
                     },
                   }}
-                  className="scroll-mt-28 border-b border-[#0D1520] py-16 first:pt-2"
+                  className="landing-step-block scroll-mt-28 border-b border-[#0D1520] py-16 first:pt-2"
                 >
                   <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-                    <motion.div
-                      layout
+                    <div
                       className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-[#0D1520]"
                       style={{
                         background: `${step.color}14`,
@@ -683,17 +691,13 @@ export default function LandingPage() {
                             ? `0 0 24px ${step.color}44`
                             : "none",
                       }}
-                      animate={{
-                        scale: activeStepIndex === i ? 1.05 : 1,
-                      }}
-                      transition={{ type: "spring", stiffness: 320, damping: 22 }}
                     >
                       <Icon
                         className="h-5 w-5"
                         style={{ color: step.color }}
                         strokeWidth={1.35}
                       />
-                    </motion.div>
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.28em] text-[#506070]">
                         Adım {String(i + 1).padStart(2, "0")} · {step.subtitle}
@@ -751,30 +755,25 @@ export default function LandingPage() {
               id="mars-ai"
               initial="hidden"
               whileInView="show"
-              viewport={{ once: false, amount: 0.2 }}
+              viewport={{ once: true, amount: 0.15 }}
               variants={{
-                hidden: { opacity: 0, y: 64 },
+                hidden: { opacity: 0, y: 20 },
                 show: {
                   opacity: 1,
                   y: 0,
-                  transition: { duration: 0.8, ease: easeOut },
+                  transition: { duration: 0.45, ease: easeOut },
                 },
               }}
-              className="relative scroll-mt-28 w-screen max-w-none border-y border-[#00F2FF]/22 bg-[#060910]/75 py-12 backdrop-blur-sm sm:py-16"
+              className="relative scroll-mt-28 w-screen max-w-none border-y border-[#00F2FF]/22 bg-[#060910]/88 py-12 sm:py-16"
               style={{
                 marginLeft: "calc(50% - 50vw)",
                 marginRight: "calc(50% - 50vw)",
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
               }}
             >
-              <motion.div
-                className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full opacity-[0.15] blur-3xl"
+              <div
+                className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full opacity-[0.12] blur-3xl"
                 style={{ background: "#00F2FF" }}
-                animate={{
-                  scale: aiActive ? [1, 1.08, 1] : 1,
-                  opacity: aiActive ? [0.12, 0.22, 0.12] : 0.12,
-                }}
-                transition={{ duration: 4, repeat: aiActive ? Infinity : 0 }}
               />
               <div className="relative mx-auto max-w-3xl px-5 sm:px-8">
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.35em] text-[#00F2FF]">
@@ -834,10 +833,10 @@ export default function LandingPage() {
               {PULL_QUOTES.map((q) => (
                 <motion.blockquote
                   key={q.cite}
-                  initial={{ opacity: 0, scale: 0.94, y: 32 }}
-                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                  viewport={{ once: false, amount: 0.35 }}
-                  transition={{ duration: 0.75, ease: easeOut }}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.45, ease: easeOut }}
                   className="mx-auto max-w-3xl border-l-2 border-[#00F2FF]/40 pl-6 sm:pl-10"
                 >
                   <p className="font-editorial text-[clamp(1.35rem,3.6vw,2.1rem)] font-medium leading-snug text-[#BCC8D4]">

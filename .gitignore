@@ -8,7 +8,11 @@ venv/
 .venv/
 
 # Kimlik bilgileri — asla commit edilmez
+# .env ve .env.local / .env.production vb. yok sayılır; yalnızca *.example GitHub'a gider.
 .env
+.env.*
+!.env.example
+!**/.env.example
 *.pem
 *.key
 id_rsa*
@@ -32,3 +36,4 @@ backend/data/2018-05-19_15.00.10/smoothed_errors/
 # Çalışma zamanı model durumu (pickle)
 backend/data/river_model_state.pkl
 backend/data/rl_qtable.pkl
+backend/data/rover_thinking.json

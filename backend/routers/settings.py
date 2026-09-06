@@ -28,4 +28,7 @@ async def get_rover_thinking():
 async def patch_rover_thinking(body: RoverThinkingBody):
     p = _processor()
     p.rover_thinking_enabled = bool(body.enabled)
+    from runtime_settings import save_thinking_enabled
+
+    save_thinking_enabled(p.rover_thinking_enabled)
     return {"enabled": p.rover_thinking_enabled}
